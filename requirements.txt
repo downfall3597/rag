@@ -3,4 +3,5 @@ torch
 numpy
 pydantic
 anthropic
+boto3
 pytest
