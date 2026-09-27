@@ -33,8 +33,8 @@ def test_pipeline_retrieves_then_generates_and_returns_citations():
             "a relevant query": [1.0, 0.0],
         }
     )
-    retriever = DenseNumpyRetriever()
-    retriever.index(chunks, embedder)
+    retriever = DenseNumpyRetriever(embedder)
+    retriever.index(chunks)
     generator = FakeGenerator(answer="a fake grounded answer [1]")
 
     pipeline = RagPipeline(embedder=embedder, retriever=retriever, generator=generator)

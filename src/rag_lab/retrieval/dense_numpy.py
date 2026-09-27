@@ -34,18 +34,20 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 
 class DenseNumpyRetriever(Retriever):
-    def __init__(self) -> None:
+    def __init__(self, embedder: Embedder) -> None:
+        self._embedder = embedder
         self._chunks: list[Chunk] = []
         self._embeddings: np.ndarray | None = None
-        self._embedder: Embedder | None = None
 
-    def index(self, chunks: list[Chunk], embedder: Embedder, embeddings: np.ndarray | None = None) -> None:
+    def index(self, chunks: list[Chunk], embeddings: np.ndarray | None = None) -> None:
+        """Store `chunks`. If `embeddings` is given (e.g. loaded from a
+        persisted index), reuse it instead of recomputing -- otherwise embed
+        `chunks` now via the embedder passed to the constructor."""
         self._chunks = chunks
-        self._embedder = embedder
         if embeddings is not None:
             self._embeddings = embeddings
         else:
-            self._embeddings = embedder.embed_documents([chunk.text for chunk in chunks])
+            self._embeddings = self._embedder.embed_documents([chunk.text for chunk in chunks])
 
     def retrieve(self, query: str, top_k: int) -> list[RetrievedChunk]:
         """Return the top_k chunks most similar to `query`.
@@ -69,5 +71,5 @@ class DenseNumpyRetriever(Retriever):
             angle = cosine_similarity(query,self._embeddings[i])
             result.append([angle,self._chunks[i]])
 
-        result.sort(reverse=True)
+        result.sort(key=lambda pair: pair[0], reverse=True)
         return [RetrievedChunk(chunk=res[1], score=res[0]) for res in result[:top_k]]

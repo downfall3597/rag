@@ -67,8 +67,8 @@ def test_retrieve_ranks_by_similarity_and_respects_top_k():
             "the query": [1.0, 0.0],
         }
     )
-    retriever = DenseNumpyRetriever()
-    retriever.index(chunks, embedder)
+    retriever = DenseNumpyRetriever(embedder)
+    retriever.index(chunks)
 
     results = retriever.retrieve("the query", top_k=2)
 
@@ -80,6 +80,6 @@ def test_retrieve_ranks_by_similarity_and_respects_top_k():
 
 
 def test_retrieve_before_index_raises():
-    retriever = DenseNumpyRetriever()
+    retriever = DenseNumpyRetriever(FakeEmbedder({}))
     with pytest.raises(ValueError):
         retriever.retrieve("anything", top_k=1)

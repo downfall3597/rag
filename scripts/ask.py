@@ -2,6 +2,10 @@
 
 Usage: python scripts/ask.py "your question here" [top_k]
 
+Set RAG_RETRIEVER=bm25 or RAG_RETRIEVER=hybrid to use keyword or hybrid
+retrieval instead of dense (the default) -- see scripts/compare_retrievers.py
+for a free, no-LLM-call side-by-side comparison of all three.
+
 Set RAG_GENERATOR=bedrock to answer via AWS Bedrock's Converse API instead of
 the direct Anthropic API (the default). Bedrock also reads RAG_BEDROCK_REGION
 (default us-east-2) and RAG_BEDROCK_MODEL_ID (default
@@ -22,13 +26,17 @@ from pathlib import Path
 
 import numpy as np
 
+from rag_lab.embeddings.base import Embedder
 from rag_lab.embeddings.local import MiniLMEmbedder
 from rag_lab.generation.anthropic_gen import AnthropicGenerator
 from rag_lab.generation.base import Generator
 from rag_lab.generation.bedrock_gen import BedrockGenerator
 from rag_lab.models import Chunk
 from rag_lab.pipeline import RagPipeline
+from rag_lab.retrieval.base import Retriever
+from rag_lab.retrieval.bm25 import BM25Retriever
 from rag_lab.retrieval.dense_numpy import DenseNumpyRetriever
+from rag_lab.retrieval.hybrid import HybridRetriever
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_FOLDER = REPO_ROOT / "data" / "index"
@@ -41,6 +49,21 @@ def build_generator() -> Generator:
             region=os.environ.get("RAG_BEDROCK_REGION", "us-east-2"),
         )
     return AnthropicGenerator()
+
+
+def build_retriever(chunks: list[Chunk], embeddings: np.ndarray, embedder: Embedder) -> Retriever:
+    kind = os.environ.get("RAG_RETRIEVER", "dense").lower()
+    if kind == "bm25":
+        retriever = BM25Retriever()
+        retriever.index(chunks)
+        return retriever
+    if kind == "hybrid":
+        retriever = HybridRetriever(dense=DenseNumpyRetriever(embedder), bm25=BM25Retriever())
+        retriever.index(chunks)
+        return retriever
+    retriever = DenseNumpyRetriever(embedder)
+    retriever.index(chunks, embeddings=embeddings)
+    return retriever
 
 
 def load_index() -> tuple[list[Chunk], np.ndarray]:
@@ -59,8 +82,7 @@ def main(query: str, top_k: int) -> None:
     chunks, embeddings = load_index()
 
     embedder = MiniLMEmbedder()
-    retriever = DenseNumpyRetriever()
-    retriever.index(chunks, embedder, embeddings=embeddings)
+    retriever = build_retriever(chunks, embeddings, embedder)
     generator = build_generator()
     pipeline = RagPipeline(embedder=embedder, retriever=retriever, generator=generator)
 
