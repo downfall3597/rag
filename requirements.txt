@@ -4,4 +4,6 @@ numpy
 pydantic
 anthropic
 boto3
+requests
+python-dotenv
 pytest

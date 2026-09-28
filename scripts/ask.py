@@ -6,6 +6,11 @@ Set RAG_RETRIEVER=bm25 or RAG_RETRIEVER=hybrid to use keyword or hybrid
 retrieval instead of dense (the default) -- see scripts/compare_retrievers.py
 for a free, no-LLM-call side-by-side comparison of all three.
 
+Set RAG_RERANKER=cross_encoder or RAG_RERANKER=jina to rerank retrieval's
+candidates before generation (default: no reranking). Jina reads
+RAG_JINA_MODEL (default jina-reranker-v2-base-multilingual) and needs a
+JINA_API_KEY environment variable.
+
 Set RAG_GENERATOR=bedrock to answer via AWS Bedrock's Converse API instead of
 the direct Anthropic API (the default). Bedrock also reads RAG_BEDROCK_REGION
 (default us-east-2) and RAG_BEDROCK_MODEL_ID (default
@@ -17,6 +22,11 @@ the environment (SSO profile, env vars, IAM role).
 Loads data/index/chunks.json + embeddings.npy (built by scripts/ingest.py),
 runs the full retrieve -> generate pipeline, and prints the answer plus
 which chunks were retrieved and their similarity scores.
+
+Secrets (ANTHROPIC_API_KEY, JINA_API_KEY) are loaded from a .env file in the
+repo root if present -- see .env for the expected keys. Real shell env vars
+still take precedence over .env, so `JINA_API_KEY=x python scripts/ask.py`
+overrides whatever's in .env for that one run.
 """
 
 import json
@@ -25,6 +35,9 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from rag_lab.embeddings.base import Embedder
 from rag_lab.embeddings.local import MiniLMEmbedder
@@ -32,7 +45,9 @@ from rag_lab.generation.anthropic_gen import AnthropicGenerator
 from rag_lab.generation.base import Generator
 from rag_lab.generation.bedrock_gen import BedrockGenerator
 from rag_lab.models import Chunk
-from rag_lab.pipeline import RagPipeline
+from rag_lab.reranking.base import Reranker
+from rag_lab.reranking.cross_encoder import CrossEncoderReranker
+from rag_lab.reranking.jina import JinaReranker
 from rag_lab.retrieval.base import Retriever
 from rag_lab.retrieval.bm25 import BM25Retriever
 from rag_lab.retrieval.dense_numpy import DenseNumpyRetriever
@@ -66,6 +81,15 @@ def build_retriever(chunks: list[Chunk], embeddings: np.ndarray, embedder: Embed
     return retriever
 
 
+def build_reranker() -> Reranker | None:
+    kind = os.environ.get("RAG_RERANKER", "none").lower()
+    if kind == "cross_encoder":
+        return CrossEncoderReranker()
+    if kind == "jina":
+        return JinaReranker(model=os.environ.get("RAG_JINA_MODEL", "jina-reranker-v2-base-multilingual"))
+    return None
+
+
 def load_index() -> tuple[list[Chunk], np.ndarray]:
     chunks_path = INDEX_FOLDER / "chunks.json"
     embeddings_path = INDEX_FOLDER / "embeddings.npy"
@@ -84,22 +108,42 @@ def main(query: str, top_k: int) -> None:
     embedder = MiniLMEmbedder()
     retriever = build_retriever(chunks, embeddings, embedder)
     generator = build_generator()
-    pipeline = RagPipeline(embedder=embedder, retriever=retriever, generator=generator)
+    reranker = build_reranker()
 
-    result = pipeline.answer(query, top_k=top_k)
+    # Retrieve and (if configured) rerank exactly once, printing progress as
+    # we go, then hand the final candidates straight to the generator -- not
+    # going through RagPipeline.answer() here, since that would redo both
+    # steps a second time just to get the same intermediate results back for
+    # printing. For Jina specifically, a second rerank() call is a second
+    # real, paid API request, not just wasted local compute.
+    retrieve_k = top_k * 5 if reranker else top_k
+    candidates = retriever.retrieve(query, top_k=retrieve_k)
+
+    print("=" * 70)
+    label = "RETRIEVED CHUNKS (before reranking)" if reranker else f"RETRIEVED CHUNKS (top {top_k})"
+    print(label)
+    print("=" * 70)
+    for i, rc in enumerate(candidates, start=1):
+        print(f"[{i}] score={rc.score:.4f} source={rc.chunk.source}")
+        print(f"    {rc.chunk.text[:120]}...")
+    print()
+
+    if reranker:
+        candidates = reranker.rerank(query, candidates, top_k)
+        print("=" * 70)
+        print(f"RERANKED CHUNKS (top {top_k})")
+        print("=" * 70)
+        for i, rc in enumerate(candidates, start=1):
+            print(f"[{i}] score={rc.score:.4f} source={rc.chunk.source}")
+            print(f"    {rc.chunk.text[:120]}...")
+        print()
+
+    result = generator.generate(query, candidates)
 
     print("=" * 70)
     print("ANSWER")
     print("=" * 70)
     print(result.answer)
-    print()
-    print("=" * 70)
-    print(f"RETRIEVED CHUNKS (top {top_k}, before filtering to what was actually cited)")
-    print("=" * 70)
-    retrieved = retriever.retrieve(query, top_k=top_k)
-    for i, rc in enumerate(retrieved, start=1):
-        print(f"[{i}] score={rc.score:.4f} source={rc.chunk.source}")
-        print(f"    {rc.chunk.text[:120]}...")
     print()
     print("=" * 70)
     print("CITATIONS ACTUALLY USED IN THE ANSWER")
