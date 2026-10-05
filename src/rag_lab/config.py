@@ -9,6 +9,7 @@ import os
 import numpy as np
 
 from rag_lab.embeddings.base import Embedder
+from rag_lab.evaluation.judge import AnswerJudge
 from rag_lab.generation.anthropic_gen import AnthropicGenerator
 from rag_lab.generation.base import Generator
 from rag_lab.generation.bedrock_gen import BedrockGenerator
@@ -53,3 +54,17 @@ def build_generator() -> Generator:
             region=os.environ.get("RAG_BEDROCK_REGION", "us-east-2"),
         )
     return AnthropicGenerator()
+
+
+def build_judge() -> AnswerJudge:
+    """RAG_JUDGE_BACKEND defaults to whatever RAG_GENERATOR is set to, since
+    that's the credential set you've already got working -- override it
+    independently if you want the judge on a different backend than
+    generation."""
+    backend = os.environ.get("RAG_JUDGE_BACKEND", os.environ.get("RAG_GENERATOR", "anthropic")).lower()
+    if backend == "bedrock":
+        return AnswerJudge.from_bedrock(
+            model_id=os.environ.get("RAG_JUDGE_MODEL_ID", "us.anthropic.claude-sonnet-5"),
+            region=os.environ.get("RAG_BEDROCK_REGION", "us-east-2"),
+        )
+    return AnswerJudge.from_anthropic(model=os.environ.get("RAG_JUDGE_MODEL", "claude-sonnet-5"))
