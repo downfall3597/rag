@@ -1,0 +1,62 @@
+[
+  {
+    "id": "q1",
+    "question": "How many days of paid vacation do full-time employees accrue per year?",
+    "reference_answer": "15 days of paid vacation per year, credited monthly at a rate of 1.25 days per month.",
+    "relevant_chunk_ids": ["time_off_policy::0"]
+  },
+  {
+    "id": "q2",
+    "question": "How much does the company reimburse per year for home office equipment like a desk?",
+    "reference_answer": "Up to $500 per year for home office equipment such as desks, chairs, and monitors.",
+    "relevant_chunk_ids": ["remote_work_policy::0", "expense_policy::0"]
+  },
+  {
+    "id": "q3",
+    "question": "How many days per week can an employee work remotely?",
+    "reference_answer": "Up to four days per week, provided their manager approves the arrangement in writing.",
+    "relevant_chunk_ids": ["remote_work_policy::0"]
+  },
+  {
+    "id": "q4",
+    "question": "What is the daily reimbursement limit for meals during business travel?",
+    "reference_answer": "$75 per day.",
+    "relevant_chunk_ids": ["expense_policy::0"]
+  },
+  {
+    "id": "q5",
+    "question": "By what time should a new hire receive their IT credentials on their first day?",
+    "reference_answer": "Before 9:00 AM.",
+    "relevant_chunk_ids": ["onboarding_guide::0"]
+  },
+  {
+    "id": "q6",
+    "question": "How many weeks of paid parental leave does the secondary caregiver receive?",
+    "reference_answer": "6 weeks.",
+    "relevant_chunk_ids": ["time_off_policy::0", "time_off_policy::1"]
+  },
+  {
+    "id": "q7",
+    "question": "Within how many days of the start date must benefits enrollment be completed?",
+    "reference_answer": "30 days of the start date.",
+    "relevant_chunk_ids": ["onboarding_guide::0", "onboarding_guide::1"]
+  },
+  {
+    "id": "q8",
+    "question": "What dollar amount of a single expense requires director pre-approval before the purchase is made?",
+    "reference_answer": "Any single expense over $1,000.",
+    "relevant_chunk_ids": ["expense_policy::0"]
+  },
+  {
+    "id": "q9",
+    "question": "After how many consecutive weeks of remote work must an employee notify People Operations?",
+    "reference_answer": "More than two consecutive weeks.",
+    "relevant_chunk_ids": ["remote_work_policy::0"]
+  },
+  {
+    "id": "q10",
+    "question": "How long before relocating to a different country must an employee notify People Operations?",
+    "reference_answer": "At least six weeks before the move.",
+    "relevant_chunk_ids": ["remote_work_policy::0", "remote_work_policy::1"]
+  }
+]

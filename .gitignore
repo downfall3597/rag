@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/index/
+data/eval/results/
 .pytest_cache/
 *.egg-info/
 AI_Engineering_Projects_Plan.docx
