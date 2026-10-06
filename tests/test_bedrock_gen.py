@@ -16,7 +16,10 @@ class FakeBedrockClient:
 
     def converse(self, **kwargs):
         self.last_kwargs = kwargs
-        return {"output": {"message": {"content": [{"text": self.answer_text}]}}}
+        return {
+            "output": {"message": {"content": [{"text": self.answer_text}]}},
+            "usage": {"inputTokens": 42, "outputTokens": 7},
+        }
 
 
 def test_generate_sends_prompt_and_parses_response_with_citations():

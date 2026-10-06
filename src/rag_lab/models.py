@@ -28,9 +28,17 @@ class RetrievedChunk(BaseModel):
     score: float
 
 
+class TokenUsage(BaseModel):
+    """Input/output token counts from one generation call, for cost tracking."""
+
+    input_tokens: int
+    output_tokens: int
+
+
 class GenerationResult(BaseModel):
     """The final answer produced from a query and its retrieved chunks."""
 
     query: str
     answer: str
     citations: list[RetrievedChunk]
+    usage: TokenUsage | None = None

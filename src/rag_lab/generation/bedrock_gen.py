@@ -14,7 +14,7 @@ import boto3
 
 from rag_lab.generation.anthropic_gen import build_prompt, extract_citations
 from rag_lab.generation.base import Generator
-from rag_lab.models import GenerationResult, RetrievedChunk
+from rag_lab.models import GenerationResult, RetrievedChunk, TokenUsage
 
 DEFAULT_MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 DEFAULT_REGION = "us-east-2"
@@ -41,4 +41,8 @@ class BedrockGenerator(Generator):
         )
         answer = response["output"]["message"]["content"][0]["text"]
         citations = extract_citations(answer, chunks)
-        return GenerationResult(query=query, answer=answer, citations=citations)
+        usage = TokenUsage(
+            input_tokens=response["usage"]["inputTokens"],
+            output_tokens=response["usage"]["outputTokens"],
+        )
+        return GenerationResult(query=query, answer=answer, citations=citations, usage=usage)
